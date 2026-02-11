@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#111122">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Patrón Flotante</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: transparent !important;
+      background-color: transparent !important;
+      overflow: hidden;
+      touch-action: none;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 50%;
+      left: 6px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+    .tool-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      transition: all 0.12s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .tool-btn:active {
+      transform: scale(0.92);
+    }
+    .activate { background: rgba(60, 200, 100, 0.65); }
+    .deactivate { background: rgba(220, 60, 60, 0.65); }
+    .add { background: rgba(80, 140, 240, 0.65); }
+    .list { background: rgba(100, 180, 220, 0.65); }
+    .config { background: rgba(160, 100, 220, 0.65); }
+
+    .add-menu, .patterns-list, .config-menu, .edit-times-menu, .edit-name-menu {
+      position: fixed;
+      left: 50px;
+      top: 10%;
+      width: 235px;
+      max-height: 46vh;
+      background: rgba(25, 25, 38, 0.97);
+      backdrop-filter: blur(12px);
+      border-radius: 10px;
+      padding: 8px;
+      border: 1px solid rgba(90, 90, 110, 0.5);
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      z-index: 9998;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    }
+    .menu-item, .list-item, .config-item, .time-item {
+      background: rgba(55, 55, 85, 0.8);
+      color: white;
+      padding: 7px 11px;
+      border-radius: 7px;
+      font-size: 0.86rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .menu-item:hover, .list-item:hover, .config-item:hover, .time-item:hover {
+      background: rgba(75, 75, 105, 0.95);
+    }
+    .delete-btn {
+      background: rgba(220, 60, 60, 0.9);
+      color: white;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .delete-btn:active {
+      background: rgba(240, 80, 80, 1);
+    }
+    .edit-btn {
+      background: rgba(100, 180, 220, 0.9);
+      color: white;
+      border: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .coord-tag {
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-left: 6px;
+    }
+    .zone-preview {
+      position: fixed;
+      border: 1px dashed rgba(255, 220, 120, 0.25);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .record-point {
+      position: fixed;
+      width: 12px;
+      height: 12px;
+      background: rgba(255, 50, 50, 0.92);
+      border: 2px solid white;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 8px rgba(255, 40, 40, 0.7);
+    }
+    .time-input, .name-input {
+      width: 78px;
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid rgba(180,180,200,0.5);
+      background: rgba(35,35,55,0.9);
+      color: white;
+      font-size: 0.84rem;
+      text-align: center;
+    }
+    .name-input {
+      width: 100%;
+    }
+    .time-input {
+      width: 65px;
+    }
+    .time-unit {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      min-width: 25px;
+    }
+    .save-btn, .cancel-btn {
+      padding: 8px 12px;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.88rem;
+      user-select: none;
+    }
+    .save-btn { background: rgba(60, 200, 100, 0.9); color: white; }
+    .cancel-btn { background: rgba(220, 60, 60, 0.9); color: white; }
+
+    .recording-mode {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(220, 60, 60, 0.9);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      z-index: 10000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    
+    .active-indicator {
+      font-size: 0.75rem;
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .pattern-info {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-left: auto;
+      margin-right: 8px;
+    }
+    
+    .debug-panel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 0.7rem;
+      max-width: 200px;
+      display: none;
+      z-index: 9997;
+    }
+    
+    .seconds-label {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.9rem;
+    }
+    
+    /* NUEVO: Estilo para botón de exportación simple */
+    .export-btn {
+      background: rgba(60, 200, 100, 0.9);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 10px auto;
+      width: 90%;
+    }
+    
+    .export-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .copy-icon {
+      font-size: 1.2rem;
+    }
+    
+    .export-status {
+      text-align: center;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.7);
+      margin-top: 8px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="tool-btn activate" id="playBtn">▶</div>
+    <div class="tool-btn deactivate" id="stopBtn">■</div>
+    <div class="tool-btn add" id="addBtn">+</div>
+    <div class="tool-btn list" id="listBtn">☰</div>
+    <div class="tool-btn config" id="configBtn">⚙</div>
+  </div>
+
+  <div class="add-menu" id="addMenu">
+    <div class="menu-item" onclick="startRecordCoordinates()">Agregar patrón nuevo</div>
+  </div>
+
+  <div class="patterns-list" id="patternsList"></div>
+
+  <div class="config-menu" id="configMenu"></div>
+
+  <div class="edit-times-menu" id="editTimesMenu">
+    <div style="font-weight:bold; text-align:center; margin-bottom:6px; font-size:0.92rem;">Editar tiempos (segundos)</div>
+    <div id="timesList"></div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="save-btn" onclick="saveEditedTimes()">Guardar</button>
+      <button class="cancel-btn" onclick="cancelEditTimes()">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="edit-name-menu" id="editNameMenu">
+    <div style="font-weight:bold; text-align:center; margin-bottom:6px; font-size:0.92rem;">Editar nombre</div>
+    <input type="text" class="name-input" id="nameInput" placeholder="Nombre del patrón" maxlength="20">
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="save-btn" onclick="savePatternName()">Guardar</button>
+      <button class="cancel-btn" onclick="cancelEditName()">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="debug-panel" id="debugPanel"></div>
+
+  <script>
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    const container = document.body;
+    const playBtn = document.getElementById('playBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const addBtn = document.getElementById('addBtn');
+    const listBtn = document.getElementById('listBtn');
+    const configBtn = document.getElementById('configBtn');
+    const addMenu = document.getElementById('addMenu');
+    const patternsList = document.getElementById('patternsList');
+    const configMenu = document.getElementById('configMenu');
+    const editTimesMenu = document.getElementById('editTimesMenu');
+    const editNameMenu = document.getElementById('editNameMenu');
+    const timesList = document.getElementById('timesList');
+    const nameInput = document.getElementById('nameInput');
+    const debugPanel = document.getElementById('debugPanel');
+
+    const DEFAULT_RADIUS = 100;
+
+    let groups = [];
+    let currentGroupIndex = -1;
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let autoInterval = null;
+    let activeZone = null;
+
+    let isRecordingCoords = false;
+    let recordedCoords = [];
+    let recordPoints = [];
+    let recordingStartTime = 0;
+
+    let editedTimes = [];
+    let editingNameIndex = -1;
+
+    let recordingIndicator = null;
+
+    // ============================================
+    // FUNCIONES BÁSICAS
+    // ============================================
+    
+    function secondsToMs(seconds) { return Math.round(seconds * 1000); }
+    function formatSeconds(seconds) { return parseFloat(seconds).toFixed(3); }
+    
+    function loadSavedData() {
+      const saved = localStorage.getItem('vibrationPatterns');
+      if (saved) {
+        try {
+          groups = JSON.parse(saved);
+          if (groups.length > 0) {
+            currentGroupIndex = 0;
+            createActiveZone();
+          }
+        } catch (err) {
+          console.error('Error al cargar datos:', err);
+          groups = [];
+        }
+      }
+    }
+
+    function calculateDelaysFromCoords(coords) {
+      if (!coords || coords.length <= 1) return [0];
+      const delays = [];
+      for (let i = 1; i < coords.length; i++) {
+        const delay = coords[i].time - coords[i-1].time;
+        delays.push(Math.max(0, delay));
+      }
+      return delays.length > 0 ? delays : [0];
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem('vibrationPatterns', JSON.stringify(groups));
+        return true;
+      } catch (err) {
+        console.error('Error al guardar:', err);
+        showFeedback('Error al guardar datos', true);
+        return false;
+      }
+    }
+
+    function safeVibrate(ms) {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    function showRecordingIndicator() {
+      if (!recordingIndicator) {
+        recordingIndicator = document.createElement('div');
+        recordingIndicator.className = 'recording-mode';
+        recordingIndicator.textContent = 'Grabando... toca + para terminar';
+        document.body.appendChild(recordingIndicator);
+      }
+    }
+
+    function hideRecordingIndicator() {
+      if (recordingIndicator) {
+        recordingIndicator.remove();
+        recordingIndicator = null;
+      }
+    }
+
+    function createActiveZone() {
+      if (activeZone) activeZone.remove();
+      if (currentGroupIndex < 0 || currentGroupIndex >= groups.length) return;
+
+      const group = groups[currentGroupIndex];
+      activeZone = document.createElement('div');
+      activeZone.className = 'zone-preview';
+      activeZone.style.width = `${group.radius * 2}px`;
+      activeZone.style.height = `${group.radius * 2}px`;
+      activeZone.style.left = `${group.x - group.radius}px`;
+      activeZone.style.top = `${group.y - group.radius}px`;
+      document.body.appendChild(activeZone);
+    }
+
+    function playPattern(delaysInSeconds) {
+      const delaysInMs = delaysInSeconds.map(secondsToMs);
+      let i = 0;
+      function doVib() {
+        safeVibrate(30);
+        i++;
+        if (i < delaysInMs.length) setTimeout(doVib, delaysInMs[i]);
+      }
+      if (delaysInMs.length > 0 && delaysInMs[0] === 0) {
+        doVib();
+      } else if (delaysInMs.length > 0) {
+        setTimeout(doVib, delaysInMs[0]);
+      }
+    }
+
+    function startAutoPlay() {
+      if (autoInterval) stopAutoPlay();
+      if (currentGroupIndex < 0) {
+        showFeedback('Selecciona un patrón primero', true);
+        return;
+      }
+
+      const group = groups[currentGroupIndex];
+      let delaysToPlay = [];
+      
+      if (group.delays && group.delays.length > 0) {
+        delaysToPlay = [...group.delays];
+      } else if (group.coords && group.coords.length > 1) {
+        for (let i = 1; i < group.coords.length; i++) {
+          const delay = group.coords[i].time - group.coords[i-1].time;
+          delaysToPlay.push(Math.max(0, delay));
+        }
+      }
+
+      if (delaysToPlay.length === 0) delaysToPlay = [0];
+
+      const totalTimeMs = delaysToPlay.reduce((a, b) => a + secondsToMs(b), 0) + 600;
+      playPattern(delaysToPlay);
+      
+      autoInterval = setInterval(() => {
+        playPattern(delaysToPlay);
+      }, totalTimeMs);
+      
+      playBtn.style.opacity = 0.55;
+      stopBtn.style.opacity = 1;
+      
+      const totalSeconds = delaysToPlay.reduce((a, b) => a + b, 0);
+      showFeedback(`▶ Reproduciendo (${delaysToPlay.length} vibraciones, ${formatSeconds(totalSeconds)}s)`);
+      updateDebugInfo();
+    }
+
+    function stopAutoPlay() {
+      if (autoInterval) {
+        clearInterval(autoInterval);
+        autoInterval = null;
+      }
+      playBtn.style.opacity = 1;
+      stopBtn.style.opacity = 0.55;
+      updateDebugInfo();
+      showFeedback('■ Reproducción detenida');
+    }
+
+    function clearRecordPoints() {
+      recordPoints.forEach(p => p.remove());
+      recordPoints = [];
+    }
+
+    function showFeedback(message, isError = false) {
+      const feedback = document.createElement('div');
+      feedback.textContent = message;
+      feedback.style.position = 'fixed';
+      feedback.style.top = '50px';
+      feedback.style.left = '50%';
+      feedback.style.transform = 'translateX(-50%)';
+      feedback.style.background = isError ? 'rgba(220, 60, 60, 0.9)' : 'rgba(60, 200, 100, 0.9)';
+      feedback.style.color = 'white';
+      feedback.style.padding = '10px 20px';
+      feedback.style.borderRadius = '10px';
+      feedback.style.zIndex = '10001';
+      feedback.style.fontSize = '0.9rem';
+      document.body.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 2000);
+    }
+
+    function updateDebugInfo() {
+      if (currentGroupIndex >= 0 && currentGroupIndex < groups.length) {
+        const group = groups[currentGroupIndex];
+        const delaysStr = group.delays ? group.delays.map(d => formatSeconds(d)).join(', ') : 'ninguno';
+        const totalSeconds = group.delays ? group.delays.reduce((a, b) => a + b, 0) : 0;
+        debugPanel.innerHTML = `
+          <strong>${group.name}</strong><br>
+          Delays: ${delaysStr} s<br>
+          Total: ${formatSeconds(totalSeconds)} s<br>
+          Coords: ${group.coords ? group.coords.length : 0}<br>
+          Auto: ${autoInterval ? 'ON' : 'OFF'}
+        `;
+      }
+    }
+
+    // ============================================
+    // LISTA DE PATRONES
+    // ============================================
+    
+    function updatePatternsList() {
+      patternsList.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; text-align:center; font-size:0.95rem;">Patrones</div>';
+
+      if (groups.length === 0) {
+        patternsList.innerHTML = `
+          <div class="empty-state">
+            <div style="margin-bottom: 10px;">No hay patrones guardados</div>
+            <div style="font-size: 0.8rem; opacity: 0.7;">
+              Usa el botón <strong>+</strong> para crear un nuevo patrón
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      groups.forEach((group, index) => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.style.display = 'flex';
+        infoDiv.style.alignItems = 'center';
+        infoDiv.style.flexWrap = 'wrap';
+        infoDiv.style.gap = '4px';
+        
+        const totalTime = group.delays ? group.delays.reduce((a, b) => a + b, 0) : 0;
+        const pointsCount = group.coords ? group.coords.length : 0;
+        
+        infoDiv.innerHTML = `
+          <span style="font-weight:500;">${group.name}</span>
+          ${pointsCount > 0 ? `<span class="coord-tag">(${pointsCount} pts)</span>` : ''}
+          <span class="seconds-label">${formatSeconds(totalTime)}s</span>
+          ${index === currentGroupIndex ? '<span class="active-indicator">✓</span>' : ''}
+        `;
+        
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.display = 'flex';
+        controlsDiv.style.gap = '4px';
+        
+        // Botón editar nombre
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-btn';
+        editBtn.innerHTML = '✎';
+        editBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          startEditName(index);
+        };
+        
+        // Botón editar tiempos (solo si tiene coords)
+        let timesBtn = null;
+        if (group.coords && group.coords.length > 0) {
+          timesBtn = document.createElement('button');
+          timesBtn.className = 'edit-btn';
+          timesBtn.style.background = 'rgba(120, 100, 220, 0.9)';
+          timesBtn.textContent = '⏱';
+          timesBtn.onclick = (ev) => {
+            ev.stopPropagation();
+            startEditTimes(index);
+          };
+        }
+        
+        // Botón eliminar
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.textContent = '×';
+        deleteBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          deletePattern(index);
+        };
+        
+        controlsDiv.appendChild(editBtn);
+        if (timesBtn) controlsDiv.appendChild(timesBtn);
+        controlsDiv.appendChild(deleteBtn);
+        
+        item.appendChild(infoDiv);
+        item.appendChild(controlsDiv);
+        
+        // Seleccionar patrón
+        item.onclick = (ev) => {
+          if (!ev.target.classList.contains('edit-btn') && !ev.target.classList.contains('delete-btn')) {
+            currentGroupIndex = index;
+            stopAutoPlay();
+            createActiveZone();
+            patternsList.style.display = 'none';
+            showFeedback(`${group.name} seleccionado`);
+            updateDebugInfo();
+          }
+        };
+        
+        patternsList.appendChild(item);
+      });
+    }
+
+    function deletePattern(index) {
+      if (confirm(`¿Eliminar "${groups[index].name}"?`)) {
+        groups.splice(index, 1);
+        if (currentGroupIndex >= groups.length) {
+          currentGroupIndex = groups.length - 1;
+        }
+        if (currentGroupIndex >= 0) {
+          createActiveZone();
+        } else {
+          if (activeZone) activeZone.remove();
+          activeZone = null;
+        }
+        stopAutoPlay();
+        updatePatternsList();
+        saveData();
+        updateDebugInfo();
+        showFeedback('Patrón eliminado');
+      }
+    }
+
+    function startEditName(index) {
+      editingNameIndex = index;
+      nameInput.value = groups[index].name;
+      patternsList.style.display = 'none';
+      editNameMenu.style.display = 'flex';
+      nameInput.focus();
+      nameInput.select();
+    }
+
+    function savePatternName() {
+      if (editingNameIndex >= 0 && nameInput.value.trim()) {
+        groups[editingNameIndex].name = nameInput.value.trim();
+        updatePatternsList();
+        saveData();
+        editNameMenu.style.display = 'none';
+        updateDebugInfo();
+        showFeedback('Nombre guardado');
+      }
+      editingNameIndex = -1;
+    }
+
+    function cancelEditName() {
+      editNameMenu.style.display = 'none';
+      editingNameIndex = -1;
+    }
+
+    function startEditTimes(index) {
+      currentGroupIndex = index;
+      const group = groups[index];
+      if (!group || !group.coords || group.coords.length === 0) {
+        showFeedback('Este patrón no tiene coordenadas grabadas', true);
+        return;
+      }
+
+      editedTimes = group.coords.map(c => ({ ...c }));
+      timesList.innerHTML = '';
+      
+      editedTimes.forEach((coord, i) => {
+        const item = document.createElement('div');
+        item.className = 'time-item';
+        item.innerHTML = `
+          <span>Punto ${i + 1}</span>
+          <input type="number" class="time-input" value="${formatSeconds(coord.time)}" min="0" step="0.001" data-index="${i}" />
+          <span class="time-unit">s</span>
+        `;
+        timesList.appendChild(item);
+      });
+
+      patternsList.style.display = 'none';
+      editTimesMenu.style.display = 'flex';
+    }
+
+    function saveEditedTimes() {
+      const inputs = timesList.querySelectorAll('.time-input');
+      let hasError = false;
+      
+      inputs.forEach(input => {
+        const index = parseInt(input.getAttribute('data-index'));
+        const newTime = parseFloat(input.value) || 0;
+        if (!isNaN(index) && newTime >= 0) {
+          editedTimes[index].time = newTime;
+        } else {
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        showFeedback('Error en los valores de tiempo', true);
+        return;
+      }
+
+      groups[currentGroupIndex].coords = [...editedTimes];
+      groups[currentGroupIndex].delays = calculateDelaysFromCoords(editedTimes);
+      
+      editTimesMenu.style.display = 'none';
+      editedTimes = [];
+      saveData();
+      updateDebugInfo();
+      showFeedback('Tiempos guardados');
+    }
+
+    function cancelEditTimes() {
+      editTimesMenu.style.display = 'none';
+      editedTimes = [];
+    }
+
+    // ============================================
+    // CONFIGURACIÓN CON EXPORTACIÓN SIMPLIFICADA
+    // ============================================
+    
+    function showConfigMenu() {
+      configMenu.innerHTML = '<div style="font-weight:bold; margin-bottom:8px; text-align:center; font-size:0.95rem;">Configuración</div>';
+      
+      // Botón para exportar/copiar
+      const exportDiv = document.createElement('div');
+      exportDiv.style.cssText = 'margin: 10px 0;';
+      
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'export-btn';
+      exportBtn.innerHTML = '<span class="copy-icon">✂</span> Copiar patrones al portapapeles';
+      exportBtn.onclick = exportToClipboard;
+      
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'export-status';
+      statusDiv.id = 'exportStatus';
+      
+      exportDiv.appendChild(exportBtn);
+      exportDiv.appendChild(statusDiv);
+      configMenu.appendChild(exportDiv);
+      
+      // Resto de opciones
+      const items = [
+        { text: 'Mostrar info depuración', action: toggleDebugPanel },
+        { text: 'Importar datos', action: importData },
+        { text: 'Limpiar todo', action: clearAllData }
+      ];
+      
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'config-item';
+        div.textContent = item.text;
+        div.onclick = item.action;
+        configMenu.appendChild(div);
+      });
+      
+      configMenu.style.display = 'flex';
+    }
+    
+    function exportToClipboard() {
+      if (groups.length === 0) {
+        document.getElementById('exportStatus').textContent = '❌ No hay patrones para copiar';
+        return;
+      }
+      
+      // Preparar datos para copiar
+      const exportData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        totalPatterns: groups.length,
+        patterns: groups
+      };
+      
+      const jsonString = JSON.stringify(exportData, null, 2);
+      
+      // Intentar usar la API moderna del portapapeles
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(jsonString)
+          .then(() => {
+            document.getElementById('exportStatus').textContent = '✅ Copiado al portapapeles!';
+            showFeedback(`✅ ${groups.length} patrones copiados`);
+          })
+          .catch(err => {
+            console.error('Error con clipboard API:', err);
+            fallbackCopy(jsonString);
+          });
+      } else {
+        fallbackCopy(jsonString);
+      }
+    }
+    
+    function fallbackCopy(text) {
+      // Método alternativo para navegadores antiguos
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          document.getElementById('exportStatus').textContent = '✅ Copiado (método alternativo)!';
+          showFeedback(`✅ ${groups.length} patrones copiados`);
+        } else {
+          document.getElementById('exportStatus').textContent = '❌ Error al copiar';
+          showFeedback('❌ No se pudo copiar', true);
+        }
+      } catch (err) {
+        document.getElementById('exportStatus').textContent = '❌ Error: ' + err;
+        showFeedback('❌ Error al copiar', true);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+    
+    // ============================================
+    // IMPORTACIÓN
+    // ============================================
+    
+    function importData() {
+      configMenu.style.display = 'none';
+      
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.style.display = 'none';
+      
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = event => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            const patterns = imported.patterns || imported;
+            
+            if (Array.isArray(patterns)) {
+              if (!confirm(`¿Importar ${patterns.length} patrones?\nSe reemplazarán los actuales.`)) {
+                return;
+              }
+              
+              groups = patterns;
+              currentGroupIndex = groups.length > 0 ? 0 : -1;
+              updatePatternsList();
+              createActiveZone();
+              saveData();
+              updateDebugInfo();
+              showFeedback(`✅ ${patterns.length} patrones importados`);
+            } else {
+              showFeedback('❌ Formato inválido', true);
+            }
+          } catch (err) {
+            showFeedback('❌ Error: Archivo inválido', true);
+          }
+        };
+        reader.readAsText(file);
+      };
+      
+      document.body.appendChild(input);
+      input.click();
+      setTimeout(() => input.remove(), 1000);
+    }
+
+    function toggleDebugPanel() {
+      debugPanel.style.display = debugPanel.style.display === 'block' ? 'none' : 'block';
+      configMenu.style.display = 'none';
+      updateDebugInfo();
+    }
+
+    function clearAllData() {
+      if (confirm('¿Eliminar TODOS los patrones? Esto no se puede deshacer.')) {
+        groups = [];
+        currentGroupIndex = -1;
+        stopAutoPlay();
+        if (activeZone) activeZone.remove();
+        activeZone = null;
+        updatePatternsList();
+        localStorage.removeItem('vibrationPatterns');
+        debugPanel.innerHTML = '';
+        showFeedback('Todos los datos eliminados');
+        configMenu.style.display = 'none';
+      }
+    }
+
+    // ============================================
+    // GRABACIÓN DE COORDENADAS
+    // ============================================
+    
+    function startRecordCoordinates() {
+      addMenu.style.display = 'none';
+      isRecordingCoords = true;
+      recordedCoords = [];
+      recordingStartTime = Date.now();
+      clearRecordPoints();
+      showRecordingIndicator();
+      showFeedback('Toca la pantalla para grabar puntos (toque + para terminar)');
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+
+    document.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const touchX = e.clientX;
+      const touchY = e.clientY;
+      const now = Date.now();
+
+      if (isRecordingCoords) {
+        const relativeTime = recordingStartTime ? (now - recordingStartTime) / 1000 : 0;
+        recordedCoords.push({ x: touchX, y: touchY, time: relativeTime });
+
+        const point = document.createElement('div');
+        point.className = 'record-point';
+        point.style.left = `${touchX}px`;
+        point.style.top = `${touchY}px`;
+        document.body.appendChild(point);
+        recordPoints.push(point);
+        return;
+      }
+
+      if (isDragging || currentGroupIndex < 0) return;
+
+      const group = groups[currentGroupIndex];
+      const dx = touchX - group.x;
+      const dy = touchY - group.y;
+      const distance = Math.sqrt(dx*dx + dy*dy);
+    });
+
+    // Arrastre de la zona
+    document.addEventListener('pointerdown', e => {
+      if (currentGroupIndex < 0 || isRecordingCoords) return;
+
+      const touchX = e.clientX;
+      const touchY = e.clientY;
+      const group = groups[currentGroupIndex];
+      const dx = touchX - group.x;
+      const dy = touchY - group.y;
+      const distance = Math.sqrt(dx*dx + dy*dy);
+
+      if (distance <= group.radius) {
+        isDragging = true;
+        dragOffsetX = e.clientX - group.x;
+        dragOffsetY = e.clientY - group.y;
+
+        const onMove = ee => {
+          if (!isDragging) return;
+          group.x = ee.clientX - dragOffsetX;
+          group.y = ee.clientY - dragOffsetY;
+          group.x = Math.max(40, Math.min(group.x, window.innerWidth - 40));
+          group.y = Math.max(40, Math.min(group.y, window.innerHeight - 40));
+
+          if (activeZone) {
+            activeZone.style.left = `${group.x - group.radius}px`;
+            activeZone.style.top = `${group.y - group.radius}px`;
+          }
+        };
+
+        const onUp = () => {
+          isDragging = false;
+          saveData();
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      }
+    });
+
+    // Botón agregar
+    addBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+
+      if (isRecordingCoords) {
+        isRecordingCoords = false;
+        hideRecordingIndicator();
+
+        if (recordedCoords.length === 0) {
+          clearRecordPoints();
+          showFeedback('No se grabaron coordenadas', true);
+          return;
+        }
+
+        const patternNumber = groups.length + 1;
+        const name = `Patrón ${patternNumber}`;
+        
+        const delays = calculateDelaysFromCoords(recordedCoords);
+
+        groups.push({
+          id: patternNumber,
+          name: name,
+          delays: delays,
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+          radius: DEFAULT_RADIUS,
+          coords: recordedCoords
+        });
+
+        currentGroupIndex = groups.length - 1;
+        stopAutoPlay();
+        createActiveZone();
+        updatePatternsList();
+        saveData();
+        updateDebugInfo();
+
+        clearRecordPoints();
+        recordedCoords = [];
+        const totalTime = delays.reduce((a, b) => a + b, 0);
+        showFeedback(`✅ Patrón creado: ${recordedCoords.length} puntos, ${formatSeconds(totalTime)}s`);
+        return;
+      }
+
+      addMenu.style.display = addMenu.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    listBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (patternsList.style.display === 'flex') {
+        patternsList.style.display = 'none';
+        return;
+      }
+      updatePatternsList();
+      patternsList.style.display = 'flex';
+    });
+
+    configBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (configMenu.style.display === 'flex') {
+        configMenu.style.display = 'none';
+        return;
+      }
+      showConfigMenu();
+    });
+
+    playBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (currentGroupIndex >= 0) {
+        safeVibrate(20);
+        startAutoPlay();
+      } else {
+        showFeedback('Selecciona un patrón primero', true);
+      }
+    });
+
+    stopBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      safeVibrate(10);
+      stopAutoPlay();
+    });
+
+    // Cerrar menús al tocar fuera
+    document.addEventListener('pointerdown', e => {
+      if (!e.target.closest('.sidebar') && 
+          !e.target.closest('.add-menu') && 
+          !e.target.closest('.patterns-list') && 
+          !e.target.closest('.config-menu') &&
+          !e.target.closest('.edit-times-menu') &&
+          !e.target.closest('.edit-name-menu') &&
+          !e.target.closest('.debug-panel')) {
+        addMenu.style.display = 'none';
+        patternsList.style.display = 'none';
+        configMenu.style.display = 'none';
+        editTimesMenu.style.display = 'none';
+        editNameMenu.style.display = 'none';
+      }
+    });
+
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+    
+    function init() {
+      loadSavedData();
+      
+      if (groups.length > 0) {
+        currentGroupIndex = 0;
+        createActiveZone();
+      }
+      
+      stopAutoPlay();
+      updatePatternsList();
+      updateDebugInfo();
+      
+      if (groups.length === 0) {
+        setTimeout(() => {
+          showFeedback('Presiona + para crear tu primer patrón');
+        }, 500);
+      }
+    }
+
+    init();
+    window.addEventListener('resize', createActiveZone);
+  if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Service Worker registrado'))
+      .catch(err => console.log('Error SW:', err));
+  });
+}
+  </script>
+</body>
+</html>
